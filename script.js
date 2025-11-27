@@ -37,9 +37,9 @@ const urlInput = document.getElementById('urlInput');
 const clearBtn = document.getElementById('clearBtn');
 const fetchBtn = document.getElementById('fetchBtn');
 
-urlInput.addEventListener('input', function() {
+urlInput.addEventListener('input', function () {
     const url = this.value.trim();
-    
+
     if (url) {
         fetchBtn.disabled = false;
         clearBtn.classList.add('show');
@@ -47,12 +47,22 @@ urlInput.addEventListener('input', function() {
         fetchBtn.disabled = true;
         clearBtn.classList.remove('show');
     }
-    
+
     if (currentVideoInfo) {
         hideVideoPreview();
         currentVideoInfo = null;
         videoData = null;
     }
+});
+
+// Auto-detect paste event
+urlInput.addEventListener('paste', function (e) {
+    setTimeout(() => {
+        const url = this.value.trim();
+        if (url && isValidTikTokUrl(url)) {
+            showStatus('Link detected! Click "Get Media" to continue', 'success');
+        }
+    }, 100);
 });
 
 async function pasteFromClipboard() {
@@ -61,10 +71,10 @@ async function pasteFromClipboard() {
         if (!navigator.clipboard || !navigator.clipboard.readText) {
             throw new Error('Clipboard API not supported');
         }
-        
+
         // Request clipboard permission and read
         const text = await navigator.clipboard.readText();
-        
+
         if (text && text.trim()) {
             urlInput.value = text.trim();
             fetchBtn.disabled = false;
@@ -77,10 +87,10 @@ async function pasteFromClipboard() {
         }
     } catch (err) {
         console.error('Clipboard error:', err);
-        
+
         // Fallback: Focus input field for manual paste
         urlInput.focus();
-        
+
         // Try alternative method for mobile
         if (document.queryCommandSupported && document.queryCommandSupported('paste')) {
             showStatus('Please press and hold the input field to paste', 'error');
@@ -100,16 +110,16 @@ function clearUrl() {
     videoData = null;
     currentImageIndex = 0;
     images = [];
-    
+
     const videoPlayer = document.getElementById('videoPlayer');
     videoPlayer.pause();
     videoPlayer.src = '';
 }
 
 function isValidTikTokUrl(url) {
-    return url.includes('tiktok.com') || 
-           url.includes('vm.tiktok.com') || 
-           url.includes('vt.tiktok.com');
+    return url.includes('tiktok.com') ||
+        url.includes('vm.tiktok.com') ||
+        url.includes('vt.tiktok.com');
 }
 
 function getNestedValue(data, keys) {
@@ -133,11 +143,11 @@ function formatFileSize(bytes) {
 
 function formatDuration(duration) {
     if (!duration) return '0:00';
-    
+
     let seconds = parseInt(duration) || 0;
     let minutes = Math.floor(seconds / 60);
     let remainingSeconds = seconds % 60;
-    
+
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
@@ -145,16 +155,16 @@ function showStatus(message, type) {
     const statusEl = document.getElementById('statusMessage');
     const statusText = document.getElementById('statusText');
     const statusIcon = document.getElementById('statusIcon');
-    
+
     statusText.textContent = message;
     statusEl.className = `status-message status-${type} show`;
-    
+
     if (type === 'success') {
         statusIcon.innerHTML = '<path d="M10 18.333a8.333 8.333 0 1 0 0-16.666 8.333 8.333 0 0 0 0 16.666z" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 10l2.5 2.5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
     } else {
         statusIcon.innerHTML = '<path d="M10 18.333a8.333 8.333 0 1 0 0-16.666 8.333 8.333 0 0 0 0 16.666z" stroke="currentColor" stroke-width="1.5"/><path d="M10 6.667V10M10 13.333h.008" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
     }
-    
+
     clearTimeout(statusTimer);
     statusTimer = setTimeout(() => {
         hideStatus();
@@ -169,7 +179,7 @@ function hideStatus() {
 function showVideoPreview(info) {
     document.getElementById('videoTitle').textContent = info.title;
     document.getElementById('videoAuthor').textContent = info.author;
-    
+
     const mediaTypeBadge = document.getElementById('mediaTypeBadge');
     const mediaTypeText = document.getElementById('mediaTypeText');
     const durationBadge = document.getElementById('durationBadge');
@@ -180,20 +190,20 @@ function showVideoPreview(info) {
     const downloadVideoBtn = document.getElementById('downloadVideoBtn');
     const downloadAudioBtn = document.getElementById('downloadAudioBtn');
     const downloadImagesBtn = document.getElementById('downloadImagesBtn');
-    
+
     if (info.mediaType === 'image') {
         mediaTypeText.textContent = 'Images';
         durationBadge.classList.remove('show');
         videoSizeEl.textContent = `${info.size} photos`;
-        
+
         videoContainer.classList.remove('show');
         imageContainer.classList.add('show');
         downloadOptions.classList.add('show');
-        
+
         downloadVideoBtn.classList.add('hidden');
         downloadAudioBtn.classList.remove('hidden');
         downloadImagesBtn.classList.remove('hidden');
-        
+
         displayImage(currentImageIndex);
         updateImageNavigation();
     } else {
@@ -201,20 +211,20 @@ function showVideoPreview(info) {
         durationBadge.classList.add('show');
         document.getElementById('videoDuration').textContent = info.duration;
         videoSizeEl.textContent = formatFileSize(info.size);
-        
+
         imageContainer.classList.remove('show');
         videoContainer.classList.add('show');
         downloadOptions.classList.add('show');
-        
+
         downloadVideoBtn.classList.remove('hidden');
         downloadAudioBtn.classList.remove('hidden');
         downloadImagesBtn.classList.add('hidden');
-        
+
         const videoPlayer = document.getElementById('videoPlayer');
         videoPlayer.src = info.videoUrl;
         videoPlayer.load();
     }
-    
+
     const videoPreview = document.getElementById('videoPreview');
     videoPreview.classList.add('show');
 }
@@ -222,7 +232,7 @@ function showVideoPreview(info) {
 function hideVideoPreview() {
     const videoPreview = document.getElementById('videoPreview');
     videoPreview.classList.remove('show');
-    
+
     const videoPlayer = document.getElementById('videoPlayer');
     videoPlayer.pause();
     videoPlayer.src = '';
@@ -230,10 +240,10 @@ function hideVideoPreview() {
 
 function displayImage(index) {
     if (images.length === 0) return;
-    
+
     const imagePlayer = document.getElementById('imagePlayer');
     imagePlayer.src = images[index];
-    
+
     document.getElementById('currentImageIndex').textContent = index + 1;
     document.getElementById('totalImages').textContent = images.length;
 }
@@ -241,7 +251,7 @@ function displayImage(index) {
 function updateImageNavigation() {
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
-    
+
     if (images.length <= 1) {
         prevBtn.classList.add('hidden');
         nextBtn.classList.add('hidden');
@@ -287,12 +297,12 @@ function showProgress(percent, downloaded, total) {
     const progressPercent = document.getElementById('progressPercent');
     const progressInfo = document.getElementById('progressInfo');
     const progressBar = document.querySelector('.progress-bar');
-    
+
     progressEl.classList.add('show');
     progressFill.style.width = `${percent}%`;
     progressPercent.textContent = `${percent}%`;
     progressBar.setAttribute('aria-valuenow', percent);
-    
+
     if (downloaded && total) {
         if (typeof downloaded === 'number' && typeof total === 'number') {
             progressInfo.textContent = `${formatFileSize(downloaded)} / ${formatFileSize(total)}`;
@@ -312,24 +322,24 @@ function hideProgress() {
 
 async function handleFetch() {
     const url = urlInput.value.trim();
-    
+
     if (!isValidTikTokUrl(url)) {
         showStatus('Please enter a valid TikTok URL', 'error');
         return;
     }
-    
+
     isLoadingDetails = true;
     fetchBtn.disabled = true;
-    
+
     const originalText = document.getElementById('fetchBtnText').textContent;
     document.getElementById('fetchBtnText').textContent = 'Loading...';
     const fetchBtnIcon = document.getElementById('fetchBtnIcon');
     fetchBtnIcon.style.display = 'none';
-    
+
     hideStatus();
     hideVideoPreview();
     showLoading();
-    
+
     for (let api of apiEndpoints) {
         try {
             // FIXED: Removed the User-Agent header - browsers don't allow modifying it
@@ -337,20 +347,20 @@ async function handleFetch() {
                 method: 'GET',
                 // No custom headers - let browser send default headers
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
-                
+
                 const imageList = getNestedValue(data, api.imageKey);
                 const hdVideoUrl = getNestedValue(data, api.hdVideoKey);
                 const videoUrl = getNestedValue(data, api.videoKey);
                 const musicUrl = getNestedValue(data, api.musicKey);
-                
+
                 let mediaUrl = null;
                 let mediaType = 'video';
                 let totalSize = 0;
                 let hasImages = false;
-                
+
                 if (imageList && Array.isArray(imageList) && imageList.length > 0) {
                     hasImages = true;
                     mediaUrl = imageList;
@@ -362,14 +372,14 @@ async function handleFetch() {
                     mediaUrl = hdVideoUrl || videoUrl;
                     mediaType = 'video';
                 }
-                
+
                 if (mediaUrl) {
                     const title = getNestedValue(data, api.titleKey) || 'TikTok Media';
                     const author = getNestedValue(data, api.authorKey) || 'Unknown';
                     const username = getNestedValue(data, api.usernameKey) || 'Unknown';
                     const thumbnailUrl = getNestedValue(data, api.thumbnailKey);
                     const duration = getNestedValue(data, api.durationKey);
-                    
+
                     if (mediaType === 'video') {
                         try {
                             const headResponse = await fetch(mediaUrl, { method: 'HEAD' });
@@ -379,7 +389,7 @@ async function handleFetch() {
                             console.log('Could not get video size');
                         }
                     }
-                    
+
                     currentVideoInfo = {
                         title,
                         author,
@@ -391,7 +401,7 @@ async function handleFetch() {
                         videoUrl: mediaUrl,
                         musicUrl: musicUrl
                     };
-                    
+
                     videoData = {
                         mediaUrl,
                         title,
@@ -401,7 +411,7 @@ async function handleFetch() {
                         mediaType,
                         musicUrl: musicUrl
                     };
-                    
+
                     hideLoading();
                     showVideoPreview(currentVideoInfo);
                     document.getElementById('fetchBtnText').textContent = originalText;
@@ -416,7 +426,7 @@ async function handleFetch() {
             continue;
         }
     }
-    
+
     hideLoading();
     showStatus('Failed to get media details. Please try again.', 'error');
     document.getElementById('fetchBtnText').textContent = originalText;
@@ -427,54 +437,85 @@ async function handleFetch() {
 
 async function downloadVideo() {
     if (!videoData || videoData.mediaType !== 'video') return;
-    
+
     isDownloading = true;
     const downloadVideoBtn = document.getElementById('downloadVideoBtn');
     downloadVideoBtn.disabled = true;
     downloadVideoBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div><span>Downloading...</span>';
-    
+
     try {
         hideStatus();
         showProgress(0);
-        
-        const response = await fetch(videoData.mediaUrl);
-        const reader = response.body.getReader();
-        const contentLength = videoData.size || parseInt(response.headers.get('content-length'));
-        
-        let receivedLength = 0;
-        let chunks = [];
-        
-        while (true) {
-            const {done, value} = await reader.read();
-            
-            if (done) break;
-            
-            chunks.push(value);
-            receivedLength += value.length;
-            
-            if (contentLength) {
-                const percent = Math.round((receivedLength / contentLength) * 100);
-                showProgress(percent, receivedLength, contentLength);
-            }
-        }
-        
-        let blob = new Blob(chunks, { type: 'video/mp4' });
-        
+
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
         const filename = `TikTok_${timestamp}_${cleanUsername}.mp4`;
-        
+
+        // Try direct download first (works on most mobile browsers)
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
+        a.href = videoData.mediaUrl;
         a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        
-        hideProgress();
-        showStatus('Video downloaded successfully!', 'success');
-        
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+
+        // For iOS Safari and some Android browsers
+        if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+            // Mobile: Open in new tab (download will be handled by browser)
+            a.click();
+
+            hideProgress();
+            showStatus('Opening video... Use browser menu to download', 'success');
+        } else {
+            // Desktop: Try fetch with progress
+            try {
+                const response = await fetch(videoData.mediaUrl, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error('Fetch failed');
+
+                const reader = response.body.getReader();
+                const contentLength = videoData.size || parseInt(response.headers.get('content-length'));
+
+                let receivedLength = 0;
+                let chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) break;
+
+                    chunks.push(value);
+                    receivedLength += value.length;
+
+                    if (contentLength) {
+                        const percent = Math.round((receivedLength / contentLength) * 100);
+                        showProgress(percent, receivedLength, contentLength);
+                    }
+                }
+
+                let blob = new Blob(chunks, { type: 'video/mp4' });
+
+                a.href = URL.createObjectURL(blob);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+
+                hideProgress();
+                showStatus('Video downloaded successfully!', 'success');
+            } catch (fetchError) {
+                // Fallback to direct link
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                hideProgress();
+                showStatus('Download started! Check your downloads folder', 'success');
+            }
+        }
+
     } catch (error) {
         console.error('Download error:', error);
         hideProgress();
@@ -488,56 +529,86 @@ async function downloadVideo() {
 
 async function downloadAudio() {
     if (!videoData) return;
-    
+
     isDownloading = true;
     const downloadAudioBtn = document.getElementById('downloadAudioBtn');
     downloadAudioBtn.disabled = true;
     downloadAudioBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div><span>Converting...</span>';
-    
+
     try {
         hideStatus();
         showProgress(0);
-        
+
         const audioUrl = videoData.musicUrl || videoData.mediaUrl;
-        
-        const response = await fetch(audioUrl);
-        const reader = response.body.getReader();
-        const contentLength = parseInt(response.headers.get('content-length')) || 0;
-        
-        let receivedLength = 0;
-        let chunks = [];
-        
-        while (true) {
-            const {done, value} = await reader.read();
-            
-            if (done) break;
-            
-            chunks.push(value);
-            receivedLength += value.length;
-            
-            if (contentLength) {
-                const percent = Math.round((receivedLength / contentLength) * 100);
-                showProgress(percent, receivedLength, contentLength);
-            }
-        }
-        
-        let blob = new Blob(chunks, { type: 'audio/mpeg' });
-        
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
         const filename = `TikTok_${timestamp}_${cleanUsername}.mp3`;
-        
+
+        // Try direct download first (works on most mobile browsers)
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
+        a.href = audioUrl;
         a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
-        
-        hideProgress();
-        showStatus('Audio downloaded successfully!', 'success');
-        
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+
+        // For iOS Safari and some Android browsers
+        if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+            // Mobile: Open in new tab
+            a.click();
+
+            hideProgress();
+            showStatus('Opening audio... Use browser menu to download', 'success');
+        } else {
+            // Desktop: Try fetch with progress
+            try {
+                const response = await fetch(audioUrl, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                if (!response.ok) throw new Error('Fetch failed');
+
+                const reader = response.body.getReader();
+                const contentLength = parseInt(response.headers.get('content-length')) || 0;
+
+                let receivedLength = 0;
+                let chunks = [];
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) break;
+
+                    chunks.push(value);
+                    receivedLength += value.length;
+
+                    if (contentLength) {
+                        const percent = Math.round((receivedLength / contentLength) * 100);
+                        showProgress(percent, receivedLength, contentLength);
+                    }
+                }
+
+                let blob = new Blob(chunks, { type: 'audio/mpeg' });
+
+                a.href = URL.createObjectURL(blob);
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+
+                hideProgress();
+                showStatus('Audio downloaded successfully!', 'success');
+            } catch (fetchError) {
+                // Fallback to direct link
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                hideProgress();
+                showStatus('Download started! Check your downloads folder', 'success');
+            }
+        }
+
     } catch (error) {
         console.error('Download error:', error);
         hideProgress();
@@ -551,47 +622,91 @@ async function downloadAudio() {
 
 async function downloadImages() {
     if (!videoData || videoData.mediaType !== 'image') return;
-    
+
     isDownloading = true;
     const downloadImagesBtn = document.getElementById('downloadImagesBtn');
     downloadImagesBtn.disabled = true;
     downloadImagesBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div><span>Downloading...</span>';
-    
+
     try {
         hideStatus();
         showProgress(0);
-        
+
         const imageList = videoData.mediaUrl;
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
-        
-        for (let i = 0; i < imageList.length; i++) {
-            try {
-                const response = await fetch(imageList[i]);
-                const blob = await response.blob();
-                
-                const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
-                
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(a.href);
-                
-                const percent = Math.round(((i + 1) / imageList.length) * 100);
-                showProgress(percent, i + 1, imageList.length);
-                
-                await new Promise(resolve => setTimeout(resolve, 500));
-            } catch (error) {
-                console.error(`Failed to download image ${i + 1}:`, error);
+
+        // Check if mobile
+        const isMobile = navigator.userAgent.match(/iPhone|iPad|iPod|Android/i);
+
+        if (isMobile) {
+            // Mobile: Download images one by one with delay
+            for (let i = 0; i < imageList.length; i++) {
+                try {
+                    const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
+
+                    const a = document.createElement('a');
+                    a.href = imageList[i];
+                    a.download = filename;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    const percent = Math.round(((i + 1) / imageList.length) * 100);
+                    showProgress(percent, i + 1, imageList.length);
+
+                    // Add delay between downloads (mobile browsers need this)
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                } catch (error) {
+                    console.error(`Failed to download image ${i + 1}:`, error);
+                }
             }
+
+            hideProgress();
+            showStatus(`${imageList.length} images opened! Check your downloads`, 'success');
+        } else {
+            // Desktop: Try fetch method
+            for (let i = 0; i < imageList.length; i++) {
+                try {
+                    const response = await fetch(imageList[i], {
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+
+                    const blob = await response.blob();
+                    const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
+
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+
+                    const percent = Math.round(((i + 1) / imageList.length) * 100);
+                    showProgress(percent, i + 1, imageList.length);
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    console.error(`Failed to download image ${i + 1}:`, error);
+                    // Fallback to direct link
+                    const a = document.createElement('a');
+                    a.href = imageList[i];
+                    a.download = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
+                    a.target = '_blank';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            }
+
+            hideProgress();
+            showStatus(`${imageList.length} images downloaded successfully!`, 'success');
         }
-        
-        hideProgress();
-        showStatus(`${imageList.length} images downloaded successfully!`, 'success');
-        
+
     } catch (error) {
         console.error('Download error:', error);
         hideProgress();
@@ -599,6 +714,6 @@ async function downloadImages() {
     } finally {
         isDownloading = false;
         downloadImagesBtn.disabled = false;
-        downloadImagesBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download ${videoData.size} Images</span>`;
+        downloadImagesBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download Images</span>`;
     }
 }
