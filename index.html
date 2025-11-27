@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Saver - Download TikTok Videos & Images</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <img src="logo.png" alt="TikTok Saver Logo" class="logo-image">
+                <h1>TikTok Saver</h1>
+            </div>
+            <p class="subtitle">Fast, free, and easy - Download your favorite TikTok videos and images without watermark</p>
+        </header>
+
+        <main class="main-content">
+            <div class="search-section">
+                <div class="input-wrapper">
+                    <svg class="input-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                        <path d="M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zm0 13.333a5.833 5.833 0 1 1 0-11.666 5.833 5.833 0 0 1 0 11.666z" fill="currentColor"/>
+                        <path d="M15.833 15.833l2.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <input 
+                        type="text" 
+                        id="urlInput" 
+                        class="url-input" 
+                        placeholder="Paste TikTok link here..."
+                        aria-label="TikTok video URL input"
+                    >
+                    <button id="clearBtn" class="clear-btn" onclick="clearUrl()" title="Clear URL" aria-label="Clear URL">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                            <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-secondary" onclick="pasteFromClipboard()" title="Paste from clipboard" aria-label="Paste link from clipboard">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                            <path d="M12 2.25h-1.5a2.25 2.25 0 0 0-4.5 0H4.5a1.5 1.5 0 0 0-1.5 1.5v10.5a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5V3.75a1.5 1.5 0 0 0-1.5-1.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Paste Link
+                    </button>
+                    <button id="fetchBtn" class="btn btn-primary" onclick="handleFetch()" disabled title="Get media information" aria-label="Get media information">
+                        <span id="fetchBtnText">Get Media</span>
+                        <svg id="fetchBtnIcon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                            <path d="M9 3.75v10.5M4.5 9.75l4.5 4.5 4.5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="videoPreview" class="video-preview">
+                <div class="preview-card">
+                    <div class="preview-media">
+                        <div id="videoContainer" class="video-container">
+                            <video id="videoPlayer" class="video-player" controls></video>
+                        </div>
+                        
+                        <div id="imageContainer" class="image-container">
+                            <div class="image-slider">
+                                <button class="slider-btn prev-btn" id="prevBtn" onclick="previousImage()" title="Previous image" aria-label="Previous image">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <img id="imagePlayer" class="image-player" alt="TikTok image">
+                                <button class="slider-btn next-btn" id="nextBtn" onclick="nextImage()" title="Next image" aria-label="Next image">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="image-counter" id="imageCounter">
+                                <span id="currentImageIndex">1</span> / <span id="totalImages">1</span>
+                            </div>
+                        </div>
+                        
+                        <div class="media-type-badge" id="mediaTypeBadge">
+                            <span id="mediaTypeText">Video</span>
+                        </div>
+                        <div class="duration-badge" id="durationBadge">
+                            <span id="videoDuration">0:00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-info">
+                        <h3 id="videoTitle" class="video-title"></h3>
+                        <div class="video-meta">
+                            <div class="meta-item">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                    <circle cx="8" cy="5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+                                    <path d="M3 14a5 5 0 0 1 10 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                </svg>
+                                <span id="videoAuthor"></span>
+                            </div>
+                            <div class="meta-item">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                    <path d="M14 6.667v6.666a1.333 1.333 0 0 1-1.333 1.334H3.333A1.333 1.333 0 0 1 2 13.333V6.667m12 0V4a1.333 1.333 0 0 0-1.333-1.333H3.333A1.333 1.333 0 0 0 2 4v2.667m12 0H2" stroke="currentColor" stroke-width="1.5"/>
+                                </svg>
+                                <span id="videoSize"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="downloadOptions" class="download-options">
+                    <button id="downloadVideoBtn" class="btn btn-download-option" onclick="downloadVideo()" title="Download video" aria-label="Download video">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                            <path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Download Video</span>
+                    </button>
+                    
+                    <button id="downloadAudioBtn" class="btn btn-download-option btn-secondary-option" onclick="downloadAudio()" title="Download audio" aria-label="Download audio as MP3">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                            <path d="M14.25 7.5v6a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 13.5v-6M9 3v7.5m0 0L6 7.5m3 3l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Download Audio (MP3)</span>
+                    </button>
+                    
+                    <button id="downloadImagesBtn" class="btn btn-download-option hidden" onclick="downloadImages()" title="Download images" aria-label="Download images">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                            <path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Download Images</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="loadingState" class="loading-state" role="status" aria-live="polite">
+                <div class="spinner" aria-hidden="true"></div>
+                <p>Fetching media details...</p>
+            </div>
+
+            <div id="downloadProgress" class="download-progress" role="status" aria-live="polite">
+                <div class="progress-header">
+                    <span>Downloading...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar" role="progressbar" aria-label="Download progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p class="progress-info" id="progressInfo">Preparing download...</p>
+            </div>
+
+            <div id="statusMessage" class="status-message" role="alert" aria-live="assertive">
+                <svg id="statusIcon" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <path d="M10 18.333a8.333 8.333 0 1 0 0-16.666 8.333 8.333 0 0 0 0 16.666z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M7.5 10l2.5 2.5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span id="statusText"></span>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-text">
+                <span>Made by</span>
+                <span class="footer-name">sovanken</span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
