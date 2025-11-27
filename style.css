@@ -248,6 +248,7 @@ body {
     display: none;
     flex: 1;
     min-height: 0;
+    padding: 0 6px;
 }
 
 .video-preview.show {
@@ -466,6 +467,7 @@ body {
     flex-direction: column;
     gap: 12px;
     flex-shrink: 0;
+    padding: 0 6px 6px 6px;
 }
 
 .download-options.show {
@@ -575,6 +577,8 @@ body {
     display: none;
     box-shadow: var(--shadow);
     margin-bottom: 12px;
+    margin-left: 6px;
+    margin-right: 6px;
 }
 
 .download-progress.show {
@@ -650,6 +654,8 @@ body {
     font-weight: 500;
     animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: var(--shadow);
+    margin-left: 6px;
+    margin-right: 6px;
 }
 
 .status-message.show {
@@ -849,5 +855,23 @@ body {
     .image-slider {
         height: 40vh;
         max-height: 400px;
+    }
+    
+    .video-preview {
+        padding: 0;
+    }
+    
+    .download-options {
+        padding: 0;
+    }
+    
+    .download-progress {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    
+    .status-message {
+        margin-left: 0;
+        margin-right: 0;
     }
 }

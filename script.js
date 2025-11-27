@@ -57,16 +57,36 @@ urlInput.addEventListener('input', function() {
 
 async function pasteFromClipboard() {
     try {
+        // Check if clipboard API is available
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+            throw new Error('Clipboard API not supported');
+        }
+        
+        // Request clipboard permission and read
         const text = await navigator.clipboard.readText();
-        if (text) {
-            urlInput.value = text;
+        
+        if (text && text.trim()) {
+            urlInput.value = text.trim();
             fetchBtn.disabled = false;
             clearBtn.classList.add('show');
             hideVideoPreview();
             hideStatus();
+            showStatus('Link pasted successfully!', 'success');
+        } else {
+            showStatus('Clipboard is empty', 'error');
         }
     } catch (err) {
-        showStatus('Failed to read clipboard. Please paste manually.', 'error');
+        console.error('Clipboard error:', err);
+        
+        // Fallback: Focus input field for manual paste
+        urlInput.focus();
+        
+        // Try alternative method for mobile
+        if (document.queryCommandSupported && document.queryCommandSupported('paste')) {
+            showStatus('Please press and hold the input field to paste', 'error');
+        } else {
+            showStatus('Please paste manually using long-press', 'error');
+        }
     }
 }
 
@@ -312,10 +332,10 @@ async function handleFetch() {
     
     for (let api of apiEndpoints) {
         try {
+            // FIXED: Removed the User-Agent header - browsers don't allow modifying it
             const response = await fetch(`${api.url}?url=${encodeURIComponent(url)}`, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
+                method: 'GET',
+                // No custom headers - let browser send default headers
             });
             
             if (response.ok) {
