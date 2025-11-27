@@ -55,48 +55,18 @@ urlInput.addEventListener('input', function () {
     }
 });
 
-// Auto-detect paste event
-urlInput.addEventListener('paste', function (e) {
-    setTimeout(() => {
-        const url = this.value.trim();
-        if (url && isValidTikTokUrl(url)) {
-            showStatus('Link detected! Click "Get Media" to continue', 'success');
-        }
-    }, 100);
-});
-
 async function pasteFromClipboard() {
     try {
-        // Check if clipboard API is available
-        if (!navigator.clipboard || !navigator.clipboard.readText) {
-            throw new Error('Clipboard API not supported');
-        }
-
-        // Request clipboard permission and read
         const text = await navigator.clipboard.readText();
-
-        if (text && text.trim()) {
-            urlInput.value = text.trim();
+        if (text) {
+            urlInput.value = text;
             fetchBtn.disabled = false;
             clearBtn.classList.add('show');
             hideVideoPreview();
             hideStatus();
-            showStatus('Link pasted successfully!', 'success');
-        } else {
-            showStatus('Clipboard is empty', 'error');
         }
     } catch (err) {
-        console.error('Clipboard error:', err);
-
-        // Fallback: Focus input field for manual paste
-        urlInput.focus();
-
-        // Try alternative method for mobile
-        if (document.queryCommandSupported && document.queryCommandSupported('paste')) {
-            showStatus('Please press and hold the input field to paste', 'error');
-        } else {
-            showStatus('Please paste manually using long-press', 'error');
-        }
+        showStatus('Failed to read clipboard. Please paste manually.', 'error');
     }
 }
 
@@ -342,10 +312,10 @@ async function handleFetch() {
 
     for (let api of apiEndpoints) {
         try {
-            // FIXED: Removed the User-Agent header - browsers don't allow modifying it
             const response = await fetch(`${api.url}?url=${encodeURIComponent(url)}`, {
-                method: 'GET',
-                // No custom headers - let browser send default headers
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
             });
 
             if (response.ok) {
@@ -447,74 +417,43 @@ async function downloadVideo() {
         hideStatus();
         showProgress(0);
 
+        const response = await fetch(videoData.mediaUrl);
+        const reader = response.body.getReader();
+        const contentLength = videoData.size || parseInt(response.headers.get('content-length'));
+
+        let receivedLength = 0;
+        let chunks = [];
+
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            chunks.push(value);
+            receivedLength += value.length;
+
+            if (contentLength) {
+                const percent = Math.round((receivedLength / contentLength) * 100);
+                showProgress(percent, receivedLength, contentLength);
+            }
+        }
+
+        let blob = new Blob(chunks, { type: 'video/mp4' });
+
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
         const filename = `TikTok_${timestamp}_${cleanUsername}.mp4`;
 
-        // Try direct download first (works on most mobile browsers)
         const a = document.createElement('a');
-        a.href = videoData.mediaUrl;
+        a.href = URL.createObjectURL(blob);
         a.download = filename;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
 
-        // For iOS Safari and some Android browsers
-        if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
-            // Mobile: Open in new tab (download will be handled by browser)
-            a.click();
-
-            hideProgress();
-            showStatus('Opening video... Use browser menu to download', 'success');
-        } else {
-            // Desktop: Try fetch with progress
-            try {
-                const response = await fetch(videoData.mediaUrl, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-
-                if (!response.ok) throw new Error('Fetch failed');
-
-                const reader = response.body.getReader();
-                const contentLength = videoData.size || parseInt(response.headers.get('content-length'));
-
-                let receivedLength = 0;
-                let chunks = [];
-
-                while (true) {
-                    const { done, value } = await reader.read();
-
-                    if (done) break;
-
-                    chunks.push(value);
-                    receivedLength += value.length;
-
-                    if (contentLength) {
-                        const percent = Math.round((receivedLength / contentLength) * 100);
-                        showProgress(percent, receivedLength, contentLength);
-                    }
-                }
-
-                let blob = new Blob(chunks, { type: 'video/mp4' });
-
-                a.href = URL.createObjectURL(blob);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(a.href);
-
-                hideProgress();
-                showStatus('Video downloaded successfully!', 'success');
-            } catch (fetchError) {
-                // Fallback to direct link
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-                hideProgress();
-                showStatus('Download started! Check your downloads folder', 'success');
-            }
-        }
+        hideProgress();
+        showStatus('Video downloaded successfully!', 'success');
 
     } catch (error) {
         console.error('Download error:', error);
@@ -540,74 +479,44 @@ async function downloadAudio() {
         showProgress(0);
 
         const audioUrl = videoData.musicUrl || videoData.mediaUrl;
+
+        const response = await fetch(audioUrl);
+        const reader = response.body.getReader();
+        const contentLength = parseInt(response.headers.get('content-length')) || 0;
+
+        let receivedLength = 0;
+        let chunks = [];
+
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            chunks.push(value);
+            receivedLength += value.length;
+
+            if (contentLength) {
+                const percent = Math.round((receivedLength / contentLength) * 100);
+                showProgress(percent, receivedLength, contentLength);
+            }
+        }
+
+        let blob = new Blob(chunks, { type: 'audio/mpeg' });
+
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
         const filename = `TikTok_${timestamp}_${cleanUsername}.mp3`;
 
-        // Try direct download first (works on most mobile browsers)
         const a = document.createElement('a');
-        a.href = audioUrl;
+        a.href = URL.createObjectURL(blob);
         a.download = filename;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
 
-        // For iOS Safari and some Android browsers
-        if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
-            // Mobile: Open in new tab
-            a.click();
-
-            hideProgress();
-            showStatus('Opening audio... Use browser menu to download', 'success');
-        } else {
-            // Desktop: Try fetch with progress
-            try {
-                const response = await fetch(audioUrl, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-
-                if (!response.ok) throw new Error('Fetch failed');
-
-                const reader = response.body.getReader();
-                const contentLength = parseInt(response.headers.get('content-length')) || 0;
-
-                let receivedLength = 0;
-                let chunks = [];
-
-                while (true) {
-                    const { done, value } = await reader.read();
-
-                    if (done) break;
-
-                    chunks.push(value);
-                    receivedLength += value.length;
-
-                    if (contentLength) {
-                        const percent = Math.round((receivedLength / contentLength) * 100);
-                        showProgress(percent, receivedLength, contentLength);
-                    }
-                }
-
-                let blob = new Blob(chunks, { type: 'audio/mpeg' });
-
-                a.href = URL.createObjectURL(blob);
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(a.href);
-
-                hideProgress();
-                showStatus('Audio downloaded successfully!', 'success');
-            } catch (fetchError) {
-                // Fallback to direct link
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-                hideProgress();
-                showStatus('Download started! Check your downloads folder', 'success');
-            }
-        }
+        hideProgress();
+        showStatus('Audio downloaded successfully!', 'success');
 
     } catch (error) {
         console.error('Download error:', error);
@@ -636,76 +545,32 @@ async function downloadImages() {
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
 
-        // Check if mobile
-        const isMobile = navigator.userAgent.match(/iPhone|iPad|iPod|Android/i);
+        for (let i = 0; i < imageList.length; i++) {
+            try {
+                const response = await fetch(imageList[i]);
+                const blob = await response.blob();
 
-        if (isMobile) {
-            // Mobile: Download images one by one with delay
-            for (let i = 0; i < imageList.length; i++) {
-                try {
-                    const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
+                const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
 
-                    const a = document.createElement('a');
-                    a.href = imageList[i];
-                    a.download = filename;
-                    a.target = '_blank';
-                    a.rel = 'noopener noreferrer';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
 
-                    const percent = Math.round(((i + 1) / imageList.length) * 100);
-                    showProgress(percent, i + 1, imageList.length);
+                const percent = Math.round(((i + 1) / imageList.length) * 100);
+                showProgress(percent, i + 1, imageList.length);
 
-                    // Add delay between downloads (mobile browsers need this)
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                } catch (error) {
-                    console.error(`Failed to download image ${i + 1}:`, error);
-                }
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (error) {
+                console.error(`Failed to download image ${i + 1}:`, error);
             }
-
-            hideProgress();
-            showStatus(`${imageList.length} images opened! Check your downloads`, 'success');
-        } else {
-            // Desktop: Try fetch method
-            for (let i = 0; i < imageList.length; i++) {
-                try {
-                    const response = await fetch(imageList[i], {
-                        method: 'GET',
-                        mode: 'cors'
-                    });
-
-                    const blob = await response.blob();
-                    const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
-
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(a.href);
-
-                    const percent = Math.round(((i + 1) / imageList.length) * 100);
-                    showProgress(percent, i + 1, imageList.length);
-
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                } catch (error) {
-                    console.error(`Failed to download image ${i + 1}:`, error);
-                    // Fallback to direct link
-                    const a = document.createElement('a');
-                    a.href = imageList[i];
-                    a.download = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
-                    a.target = '_blank';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
-            }
-
-            hideProgress();
-            showStatus(`${imageList.length} images downloaded successfully!`, 'success');
         }
+
+        hideProgress();
+        showStatus(`${imageList.length} images downloaded successfully!`, 'success');
 
     } catch (error) {
         console.error('Download error:', error);
@@ -714,6 +579,6 @@ async function downloadImages() {
     } finally {
         isDownloading = false;
         downloadImagesBtn.disabled = false;
-        downloadImagesBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download Images</span>`;
+        downloadImagesBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download ${videoData.size} Images</span>`;
     }
 }
