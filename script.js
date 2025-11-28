@@ -33,6 +33,9 @@ const apiEndpoints = [
     }
 ];
 
+// CORS proxy for mobile downloads
+const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
 const urlInput = document.getElementById('urlInput');
 const clearBtn = document.getElementById('clearBtn');
 const fetchBtn = document.getElementById('fetchBtn');
@@ -52,6 +55,13 @@ urlInput.addEventListener('input', function () {
         hideVideoPreview();
         currentVideoInfo = null;
         videoData = null;
+    }
+});
+
+// Add Enter key support
+urlInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !fetchBtn.disabled) {
+        handleFetch();
     }
 });
 
@@ -290,6 +300,97 @@ function hideProgress() {
     document.getElementById('progressFill').style.width = '0%';
 }
 
+// Detect if user is on mobile device
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Helper function to download via proxy
+async function downloadWithProxy(url, filename, mimeType) {
+    try {
+        showProgress(10);
+        
+        // Use CORS proxy to fetch the file
+        const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch file');
+        }
+
+        showProgress(50);
+        
+        const blob = await response.blob();
+        
+        showProgress(80);
+        
+        // Create proper blob with mime type
+        const properBlob = new Blob([blob], { type: mimeType });
+        
+        // Create download link
+        const downloadUrl = URL.createObjectURL(properBlob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        showProgress(100);
+        
+        // Cleanup
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+        }, 100);
+        
+        return true;
+    } catch (error) {
+        console.error('Proxy download error:', error);
+        return false;
+    }
+}
+
+// Direct download without proxy
+async function downloadDirect(url, filename, mimeType) {
+    try {
+        showProgress(10);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch file');
+        }
+
+        showProgress(50);
+        
+        const blob = await response.blob();
+        
+        showProgress(80);
+        
+        const properBlob = new Blob([blob], { type: mimeType });
+        const downloadUrl = URL.createObjectURL(properBlob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        showProgress(100);
+        
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+        }, 100);
+        
+        return true;
+    } catch (error) {
+        console.error('Direct download error:', error);
+        return false;
+    }
+}
+
 async function handleFetch() {
     const url = urlInput.value.trim();
 
@@ -313,9 +414,9 @@ async function handleFetch() {
     for (let api of apiEndpoints) {
         try {
             const response = await fetch(`${api.url}?url=${encodeURIComponent(url)}`, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache'
             });
 
             if (response.ok) {
@@ -352,11 +453,15 @@ async function handleFetch() {
 
                     if (mediaType === 'video') {
                         try {
-                            const headResponse = await fetch(mediaUrl, { method: 'HEAD' });
+                            const headResponse = await fetch(mediaUrl, { 
+                                method: 'HEAD',
+                                mode: 'cors'
+                            });
                             const contentLength = headResponse.headers.get('content-length');
                             totalSize = contentLength ? parseInt(contentLength) : 0;
                         } catch (e) {
-                            console.log('Could not get video size');
+                            console.log('Could not get video size:', e);
+                            totalSize = 0;
                         }
                     }
 
@@ -417,43 +522,26 @@ async function downloadVideo() {
         hideStatus();
         showProgress(0);
 
-        const response = await fetch(videoData.mediaUrl);
-        const reader = response.body.getReader();
-        const contentLength = videoData.size || parseInt(response.headers.get('content-length'));
-
-        let receivedLength = 0;
-        let chunks = [];
-
-        while (true) {
-            const { done, value } = await reader.read();
-
-            if (done) break;
-
-            chunks.push(value);
-            receivedLength += value.length;
-
-            if (contentLength) {
-                const percent = Math.round((receivedLength / contentLength) * 100);
-                showProgress(percent, receivedLength, contentLength);
-            }
-        }
-
-        let blob = new Blob(chunks, { type: 'video/mp4' });
-
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
         const filename = `TikTok_${timestamp}_${cleanUsername}.mp4`;
 
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
+        // Try direct download first
+        let success = await downloadDirect(videoData.mediaUrl, filename, 'video/mp4');
+        
+        // If direct download fails (CORS), try with proxy
+        if (!success) {
+            console.log('Direct download failed, trying with proxy...');
+            success = await downloadWithProxy(videoData.mediaUrl, filename, 'video/mp4');
+        }
 
         hideProgress();
-        showStatus('Video downloaded successfully!', 'success');
+        
+        if (success) {
+            showStatus('Video downloaded successfully!', 'success');
+        } else {
+            throw new Error('Both download methods failed');
+        }
 
     } catch (error) {
         console.error('Download error:', error);
@@ -479,44 +567,26 @@ async function downloadAudio() {
         showProgress(0);
 
         const audioUrl = videoData.musicUrl || videoData.mediaUrl;
-
-        const response = await fetch(audioUrl);
-        const reader = response.body.getReader();
-        const contentLength = parseInt(response.headers.get('content-length')) || 0;
-
-        let receivedLength = 0;
-        let chunks = [];
-
-        while (true) {
-            const { done, value } = await reader.read();
-
-            if (done) break;
-
-            chunks.push(value);
-            receivedLength += value.length;
-
-            if (contentLength) {
-                const percent = Math.round((receivedLength / contentLength) * 100);
-                showProgress(percent, receivedLength, contentLength);
-            }
-        }
-
-        let blob = new Blob(chunks, { type: 'audio/mpeg' });
-
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
         const filename = `TikTok_${timestamp}_${cleanUsername}.mp3`;
 
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
+        // Try direct download first
+        let success = await downloadDirect(audioUrl, filename, 'audio/mpeg');
+        
+        // If direct download fails (CORS), try with proxy
+        if (!success) {
+            console.log('Direct download failed, trying with proxy...');
+            success = await downloadWithProxy(audioUrl, filename, 'audio/mpeg');
+        }
 
         hideProgress();
-        showStatus('Audio downloaded successfully!', 'success');
+        
+        if (success) {
+            showStatus('Audio downloaded successfully!', 'success');
+        } else {
+            throw new Error('Both download methods failed');
+        }
 
     } catch (error) {
         console.error('Download error:', error);
@@ -544,25 +614,28 @@ async function downloadImages() {
         const imageList = videoData.mediaUrl;
         const timestamp = Date.now();
         const cleanUsername = videoData.username.replace(/[^\w\s-]/g, '');
+        let successCount = 0;
 
         for (let i = 0; i < imageList.length; i++) {
             try {
-                const response = await fetch(imageList[i]);
-                const blob = await response.blob();
-
                 const filename = `TikTok_${timestamp}_${cleanUsername}_${i + 1}.jpg`;
-
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(a.href);
+                
+                // Try direct download first
+                let success = await downloadDirect(imageList[i], filename, 'image/jpeg');
+                
+                // If direct download fails, try with proxy
+                if (!success) {
+                    success = await downloadWithProxy(imageList[i], filename, 'image/jpeg');
+                }
+                
+                if (success) {
+                    successCount++;
+                }
 
                 const percent = Math.round(((i + 1) / imageList.length) * 100);
                 showProgress(percent, i + 1, imageList.length);
 
+                // Delay between downloads
                 await new Promise(resolve => setTimeout(resolve, 500));
             } catch (error) {
                 console.error(`Failed to download image ${i + 1}:`, error);
@@ -570,7 +643,12 @@ async function downloadImages() {
         }
 
         hideProgress();
-        showStatus(`${imageList.length} images downloaded successfully!`, 'success');
+        
+        if (successCount > 0) {
+            showStatus(`${successCount} of ${imageList.length} images downloaded successfully!`, 'success');
+        } else {
+            throw new Error('Failed to download images');
+        }
 
     } catch (error) {
         console.error('Download error:', error);
@@ -579,6 +657,33 @@ async function downloadImages() {
     } finally {
         isDownloading = false;
         downloadImagesBtn.disabled = false;
-        downloadImagesBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download ${videoData.size} Images</span>`;
+        downloadImagesBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 3v9m0 0l-3-3m3 3l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download Images</span>`;
+    }
+}
+
+// Add touch/swipe support for image navigation on mobile
+let touchStartX = 0;
+let touchEndX = 0;
+
+const imageContainer = document.getElementById('imageContainer');
+if (imageContainer) {
+    imageContainer.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    imageContainer.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    }, { passive: true });
+}
+
+function handleSwipe() {
+    if (touchEndX < touchStartX - 50) {
+        // Swipe left - next image
+        nextImage();
+    }
+    if (touchEndX > touchStartX + 50) {
+        // Swipe right - previous image
+        previousImage();
     }
 }
